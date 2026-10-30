@@ -1,0 +1,11 @@
+{
+  "name": "mazurport", "private": true, "version": "1.0.0",
+  "workspaces": ["backend", "frontend"],
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "dev:api": "npm run dev -w backend", "dev:web": "npm run dev -w frontend",
+    "typecheck": "npm run typecheck --workspaces", "build": "npm run build --workspaces",
+    "test": "npm run test -w backend", "test:integration": "npm run test:integration -w backend",
+    "migrate": "npm run migrate -w backend", "seed": "npm run seed -w backend"
+  }
+}
