@@ -23,7 +23,7 @@ export class AuthService {
  }
  private async makeSession(repo:AuthRepository,user:import('../types.js').User){
   const token=randomBytes(32).toString('hex'),csrfToken=randomBytes(32).toString('hex');
-  await this.pool.query('DELETE FROM sessions WHERE expires_at< $1',[this.now()]);
+  await repo.cleanup(this.now());
   await repo.session(user.id,tokenHash(token),csrfToken,new Date(this.now().getTime()+7*86400000));
   return {user,token,csrfToken};
  }
