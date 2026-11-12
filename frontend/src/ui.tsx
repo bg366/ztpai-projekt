@@ -15,7 +15,7 @@ export function Modal({title,onClose,children}:{title:string;onClose:()=>void;ch
  useEffect(()=>{const handler=(e:KeyboardEvent)=>{if(e.key==='Escape')onClose();};document.addEventListener('keydown',handler);const previous=document.activeElement as HTMLElement;const dialog=document.querySelector<HTMLDialogElement>('dialog');dialog?.showModal();return()=>{document.removeEventListener('keydown',handler);previous?.focus();};},[]);
  return <dialog className="modal" onCancel={e=>{e.preventDefault();onClose();}}><div className="modal-heading"><h2>{title}</h2><button className="icon-button" aria-label="Zamknij" onClick={onClose}><X size={20}/></button></div>{children}</dialog>;
 }
-export function Form({onSubmit,children,label='Zapisz',onCancel}:{onSubmit:(data:FormData)=>Promise<void>;children:ReactNode;label?:string;onCancel?:()=>void}){
+export function Form({onSubmit,children,label='Zapisz',onCancel}:{onSubmit:(data:FormData)=>Promise<void>;children?:ReactNode;label?:string;onCancel?:()=>void}){
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();setError('');setBusy(true);try{await onSubmit(new FormData(event.currentTarget));}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  return <form onSubmit={submit}>{children}{error&&<ErrorBox message={error}/>}<div className="form-actions">{onCancel&&<button type="button" className="button secondary" onClick={onCancel}>Anuluj</button>}<button className="button" disabled={busy}>{busy?<><LoaderCircle size={17} className="spin"/>Zapisywanie…</>:label}</button></div></form>;
