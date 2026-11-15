@@ -1,41 +1,1245 @@
-import { useState,type ReactNode } from 'react';
-import { Plus,ArrowRight,Anchor,CalendarDays,Ship,Wrench,Check,ArrowUpRight,Pencil,Trash2,LogIn,LogOut } from 'lucide-react';
-import { api,money,date,names,type User,type Row,type Page } from './api';
-import { useData,useList,Header,Loader,ErrorBox,Empty,Badge,Modal,Form,Field,Pager,Filters,Confirm } from './ui';
-export interface Props {user:User;version:number;changed:(message?:string)=>void;navigate:(page:string)=>void}
-const num=(f:FormData,key:string)=>Number(f.get(key));
-function Resource({loading,error,empty,children}:{loading:boolean;error:string;empty:boolean;children:ReactNode}){if(loading)return <Loader/>;if(error)return <ErrorBox message={error}/>;if(empty)return <Empty>Dodaj pierwszy wpis lub zmień ustawione filtry.</Empty>;return <>{children}</>;}
-function localTime(value:Date){return value.toLocaleString('sv-SE',{timeZone:'Europe/Warsaw'}).slice(0,16).replace(' ','T');}
-function utcTime(value:string){let instant=new Date(value+'Z');for(let i=0;i<2;i++){const local=new Date(localTime(instant)+'Z');instant=new Date(instant.getTime()+new Date(value+'Z').getTime()-local.getTime());}if(localTime(instant)!==value)throw new Error('Ta godzina nie istnieje przy zmianie czasu. Wybierz inną.');return instant.toISOString();}
-export function Dashboard({user,version,navigate}:Props){
- const stats=useData<Row>('/dashboard',version),bookings=useData<Page>('/reservations?limit=4&status=CONFIRMED&sort=oldest',version);
- return <><Header title={`Dzień dobry, ${user.name.split(' ')[0]}.`} description={user.role==='SAILOR'?'Twój następny rejs zaczyna się tutaj.':'Wszystko, co dziś dzieje się w Twoim porcie.'} action={<button className="button" onClick={()=>navigate('availability')}><Plus size={17}/>Nowa rezerwacja</button>}/><section className="welcome-banner"><div><span className="pill">MAZURY CZEKAJĄ</span><h2>Znajdź swoje miejsce.<br/>Poczuj spokój na wodzie.</h2><p>Dopasowane miejsce, przejrzysta cena,<br/>wszystkie rezerwacje w jednym panelu.</p><button className="banner-link" onClick={()=>navigate('availability')}>Sprawdź dostępność <ArrowRight size={18}/></button></div><div className="marina-illustration" aria-hidden="true"><div className="pier pier-a"/><div className="pier pier-b"/>{[1,2,3,4,5,6].map(n=><span key={n} className={`mini-boat boat-${n}`}/>)}<span className="map-label">MAZURPORT</span><Anchor className="map-anchor" size={28}/></div></section><div className="stats-grid">{[{key:'available_berths',label:'Otwarte miejsca',icon:Anchor},{key:'upcoming',label:'Potwierdzone rezerwacje',icon:CalendarDays},{key:'checked_in',label:'Jachty w porcie',icon:Ship},{key:'open_faults',label:'Otwarte zgłoszenia',icon:Wrench}].map(item=><article className="stat" key={item.key}><span className="stat-icon"><item.icon size={20}/></span><strong>{stats.data?.[item.key]??'—'}</strong><span>{item.label}</span></article>)}</div>{stats.error&&<ErrorBox message={stats.error}/>}<section className="panel"><div className="section-heading"><div><h2>Potwierdzone rezerwacje</h2><p className="muted">Plan pobytów w porcie</p></div><button className="text-button" onClick={()=>navigate('reservations')}>Wszystkie <ArrowUpRight size={16}/></button></div><Resource loading={bookings.loading} error={bookings.error} empty={!bookings.data?.data.length}><div className="booking-list">{bookings.data?.data.map(r=><div key={r.id} className="booking-row"><span className="berth-symbol">{r.berth_code}</span><div><strong>{r.boat_name}</strong><small>{date(r.starts_at)} → {date(r.ends_at)}</small></div><Badge value={r.status}/><strong>{money(r.quoted_cents)}</strong></div>)}</div></Resource></section><div className="dashboard-footnote"><Anchor size={20}/><p>Stawka jest zapisywana w chwili rezerwacji. Każda rozpoczęta doba to 24 godziny od początku pobytu.</p></div></>;
+import { useState, type ReactNode } from "react";
+import {
+  Plus,
+  ArrowRight,
+  Anchor,
+  CalendarDays,
+  Ship,
+  Wrench,
+  Check,
+  ArrowUpRight,
+  Pencil,
+  Trash2,
+  LogIn,
+  LogOut,
+} from "lucide-react";
+import { api, money, date, names, type User, type Row, type Page } from "./api";
+import {
+  useData,
+  useList,
+  Header,
+  Loader,
+  ErrorBox,
+  Empty,
+  Badge,
+  Modal,
+  Form,
+  Field,
+  Pager,
+  Filters,
+  Confirm,
+} from "./ui";
+export interface Props {
+  user: User;
+  version: number;
+  changed: (message?: string) => void;
+  navigate: (page: string) => void;
 }
-export function Boats({version,changed}:Props){
- const list=useList('/boats',version),[editing,setEditing]=useState<Row|null|undefined>(),[deleting,setDeleting]=useState<Row>();
- return <><Header title="Moje jachty" description="Wymiary jachtu pomagają znaleźć bezpieczne miejsce przy pomoście." action={<button className="button" onClick={()=>setEditing(null)}><Plus size={17}/>Dodaj jacht</button>}/><Filters {...list.filters}/><Resource loading={list.loading} error={list.error} empty={!list.data?.data.length}><div className="card-grid">{list.data?.data.map(b=><article className="boat-card" key={b.id}><div className="boat-card-top"><span className="boat-icon"><Ship size={35}/></span><span className="small-caps">{b.registration}</span></div><h2>{b.name}</h2><p className="muted">Jacht żaglowy / jednostka rekreacyjna</p><div className="dimensions"><div><strong>{b.length_cm/100} m</strong><small>Długość</small></div><div><strong>{b.width_cm/100} m</strong><small>Szerokość</small></div><div><strong>{b.draft_cm/100} m</strong><small>Zanurzenie</small></div></div><div className="card-actions"><button className="text-button" onClick={()=>setEditing(b)}><Pencil size={15}/>Edytuj</button><button className="text-button danger" onClick={()=>setDeleting(b)}><Trash2 size={15}/>Usuń</button></div></article>)}</div>{list.data&&<Pager data={list.data} onPage={list.setPage}/>}</Resource>{editing!==undefined&&<Modal title={editing?'Edytuj jacht':'Dodaj jacht'} onClose={()=>setEditing(undefined)}><Form onCancel={()=>setEditing(undefined)} onSubmit={async f=>{await api(editing?`/boats/${editing.id}`:'/boats',editing?'PUT':'POST',{name:f.get('name'),registration:f.get('registration'),length_cm:num(f,'length_cm'),width_cm:num(f,'width_cm'),draft_cm:num(f,'draft_cm')});setEditing(undefined);changed('Jacht zapisany.');}}><Field label="Nazwa jachtu" name="name" value={editing?.name}/><Field label="Numer rejestracyjny" name="registration" value={editing?.registration}/><div className="form-grid three"><Field label="Długość (cm)" name="length_cm" type="number" min={10} max={10000} value={editing?.length_cm}/><Field label="Szerokość (cm)" name="width_cm" type="number" min={10} max={10000} value={editing?.width_cm}/><Field label="Zanurzenie (cm)" name="draft_cm" type="number" min={10} max={10000} value={editing?.draft_cm}/></div><p className="form-help">Nie zmienisz wymiarów jachtu, który ma aktywną rezerwację.</p></Form></Modal>}{deleting&&<Confirm title={`Usunąć jacht „${deleting.name}”?`} description="Jacht zniknie z Twojego katalogu. Historia rezerwacji zostanie zachowana. Aktywne rezerwacje blokują usunięcie." onClose={()=>setDeleting(undefined)} onConfirm={async()=>{await api(`/boats/${deleting.id}`,'DELETE');setDeleting(undefined);changed('Jacht usunięty.');}} label="Usuń jacht"/>}</>;
+const num = (f: FormData, key: string) => Number(f.get(key));
+function Resource({
+  loading,
+  error,
+  empty,
+  children,
+}: {
+  loading: boolean;
+  error: string;
+  empty: boolean;
+  children: ReactNode;
+}) {
+  if (loading) return <Loader />;
+  if (error) return <ErrorBox message={error} />;
+  if (empty)
+    return <Empty>Dodaj pierwszy wpis lub zmień ustawione filtry.</Empty>;
+  return <>{children}</>;
 }
-export function Availability({version,changed,navigate}:Props){
- const boats=useData<Page>('/boats?limit=100&sort=name',version),[results,setResults]=useState<Row[]>(),[period,setPeriod]=useState<{boat_id:string;starts_at:string;ends_at:string}>(),[selected,setSelected]=useState<Row>();
- const start=new Date(Date.now()+86400000);start.setMinutes(0,0,0);const end=new Date(start.getTime()+2*86400000);
- return <><Header title="Znajdź miejsce w porcie" description="Wybierz jacht i termin. Pokażemy miejsca dopasowane do jego wymiarów."/><div className="availability-layout"><section className="panel search-panel"><h2>Dokąd dziś płyniemy?</h2>{boats.loading?<Loader/>:boats.error?<ErrorBox message={boats.error}/>:!boats.data?.data.length?<Empty title="Najpierw dodaj jacht"><button className="text-button" onClick={()=>navigate('boats')}>Przejdź do moich jachtów <ArrowRight size={15}/></button></Empty>:<Form label="Sprawdź dostępność" onSubmit={async f=>{const input={boat_id:String(f.get('boat_id')),starts_at:utcTime(String(f.get('starts_at'))),ends_at:utcTime(String(f.get('ends_at')))};setResults(undefined);const result=await api<{data:Row[]}>(`/availability?${new URLSearchParams(input)}`);setPeriod(input);setResults(result.data);}}><label className="field"><span>Twój jacht</span><select name="boat_id" required>{boats.data.data.map(b=><option key={b.id} value={b.id}>{b.name} · {b.length_cm/100} m</option>)}</select></label><Field label="Przyjazd (czas polski)" name="starts_at" type="datetime-local" value={localTime(start)}/><Field label="Wyjazd (czas polski)" name="ends_at" type="datetime-local" value={localTime(end)}/><div className="info-note"><Anchor size={20}/><p>Od 1 godziny do 30 dni. Cena za każdą rozpoczętą dobę 24 h. Bez płatności online.</p></div></Form>}</section><section className="availability-results">{results===undefined?<div className="search-placeholder"><span className="compass"><Anchor size={48}/></span><h2>Tu zaczyna się dobry postój.</h2><p>Uzupełnij termin, aby zobaczyć wolne miejsca i cenę całego pobytu.</p></div>:results.length===0?<Empty title="Brak wolnych miejsc">Zmień termin lub wybierz inny jacht.</Empty>:<><div className="results-heading"><h2>Dostępne miejsca</h2><span>{results.length} propozycji</span></div><div className="berth-grid">{results.map(b=><article className="berth-card" key={b.id}><div className="berth-card-heading"><span className="berth-symbol">{b.code}</span><Badge value="AVAILABLE"/></div><p>Do {b.max_length_cm/100} m długości · {b.max_width_cm/100} m szerokości<br/>Zanurzenie do {b.max_draft_cm/100} m</p><div className="berth-price"><div><strong>{money(b.quoted_cents)}</strong><small>za cały pobyt · {money(b.rate_cents)}/dobę</small></div><button className="button" onClick={()=>setSelected(b)}>Wybierz <ArrowRight size={16}/></button></div></article>)}</div></>}</section></div>{selected&&period&&<Confirm title={`Rezerwacja miejsca ${selected.code}`} description={`${date(period.starts_at)} → ${date(period.ends_at)}. Koszt planowanego pobytu: ${money(selected.quoted_cents)}. Wcześniejszy wyjazd nie obniża opłaty; późniejszy jest rozliczany za kolejne rozpoczęte doby. Anulowanie jest możliwe przed rozpoczęciem terminu.`} label="Potwierdź rezerwację" onClose={()=>setSelected(undefined)} onConfirm={async()=>{await api('/reservations','POST',{...period,berth_id:selected.id});setSelected(undefined);changed('Miejsce zarezerwowane. Do zobaczenia w porcie!');navigate('reservations');}}/>}</>;
+function localTime(value: Date) {
+  return value
+    .toLocaleString("sv-SE", { timeZone: "Europe/Warsaw" })
+    .slice(0, 16)
+    .replace(" ", "T");
 }
-export function Reservations({user,version,changed,navigate}:Props){
- const list=useList('/reservations',version),[action,setAction]=useState<{row:Row;type:string}>(),[detail,setDetail]=useState<Row>(),staff=user.role!=='SAILOR';
- const actionNames:Record<string,string>={cancel:'Anuluj rezerwację','check-in':'Zamelduj jacht','check-out':'Wymelduj i rozlicz'};
- return <><Header title="Rezerwacje" description={staff?'Kontroluj przyjazdy, wyjazdy i rozliczenia całego portu.':'Twoje plany, pobyty i rozliczenia w jednym miejscu.'} action={<button className="button" onClick={()=>navigate('availability')}><Plus size={17}/>Nowa rezerwacja</button>}/><section className="panel"><Filters {...list.filters} statuses={['CONFIRMED','CHECKED_IN','COMPLETED','CANCELLED']}/><Resource loading={list.loading} error={list.error} empty={!list.data?.data.length}><div className="table-scroll"><table><thead><tr><th>Jacht / miejsce</th><th>Termin pobytu</th><th>Status</th><th>Koszt</th><th>Operacje</th></tr></thead><tbody>{list.data?.data.map(r=><tr key={r.id}><td><button className="table-link" onClick={async()=>{try{setDetail(await api(`/reservations/${r.id}`));}catch(e){changed((e as Error).message);}}}>{r.boat_name}</button><small>{r.berth_code}{staff?` · ${r.user_name}`:''}</small>{r.berth_status==='CLOSED'&&r.status==='CONFIRMED'&&<span className="inline-warning">Miejsce zamknięte, skontaktuj się z obsługą.</span>}</td><td><span>{date(r.starts_at)}</span><small>do {date(r.ends_at)}</small></td><td><Badge value={r.status}/></td><td><strong>{money(r.final_cents??r.quoted_cents)}</strong><small>{r.final_cents!==null?'Rozliczono':'Planowany koszt'}</small></td><td><div className="row-actions">{r.status==='CONFIRMED'&&<>{staff&&<button className="icon-button" title="Zamelduj" aria-label={`Zamelduj ${r.boat_name}`} onClick={()=>setAction({row:r,type:'check-in'})}><LogIn size={18}/></button>}{(staff||new Date(r.starts_at)>new Date())&&<button className="text-button danger" onClick={()=>setAction({row:r,type:'cancel'})}>Anuluj</button>}</>}{staff&&r.status==='CHECKED_IN'&&<button className="text-button" onClick={()=>setAction({row:r,type:'check-out'})}><LogOut size={16}/>Wymelduj</button>}</div></td></tr>)}</tbody></table></div>{list.data&&<Pager data={list.data} onPage={list.setPage}/>}</Resource></section>{action&&<Confirm title={actionNames[action.type]!} description={`${action.row.boat_name}, miejsce ${action.row.berth_code}. ${action.type==='check-out'?'Końcowa cena uwzględni planowany pobyt oraz ewentualne przekroczenie terminu.':action.type==='check-in'?'Zameldowanie jest możliwe w terminie rezerwacji, gdy miejsce jest otwarte i wolne.':'Tej operacji nie można cofnąć.'}`} onClose={()=>setAction(undefined)} onConfirm={async()=>{await api(`/reservations/${action.row.id}/${action.type}`,'POST');setAction(undefined);changed('Stan rezerwacji został zmieniony.');}} label={actionNames[action.type]}/>} {detail&&<Modal title={`Rezerwacja · ${detail.berth_code}`} onClose={()=>setDetail(undefined)}><div className="reservation-detail"><Badge value={detail.status}/><h3>{detail.boat_name}</h3><p>{detail.registration} · {detail.user_name}</p><dl><dt>Przyjazd</dt><dd>{date(detail.starts_at)}</dd><dt>Wyjazd</dt><dd>{date(detail.ends_at)}</dd><dt>Stawka za dobę</dt><dd>{money(detail.rate_cents)}</dd><dt>Planowany koszt</dt><dd>{money(detail.quoted_cents)}</dd>{detail.checked_in_at&&<><dt>Zameldowano</dt><dd>{date(detail.checked_in_at)}</dd></>}{detail.checked_out_at&&<><dt>Wymeldowano</dt><dd>{date(detail.checked_out_at)}</dd><dt>Końcowa opłata</dt><dd><strong>{money(detail.final_cents)}</strong></dd></>}</dl><small className="muted">Numer rezerwacji: {detail.id}</small></div></Modal>}</>;
+function utcTime(value: string) {
+  let instant = new Date(value + "Z");
+  for (let i = 0; i < 2; i++) {
+    const local = new Date(localTime(instant) + "Z");
+    instant = new Date(
+      instant.getTime() + new Date(value + "Z").getTime() - local.getTime(),
+    );
+  }
+  if (localTime(instant) !== value)
+    throw new Error(
+      "Ta godzina nie istnieje przy zmianie czasu. Wybierz inną.",
+    );
+  return instant.toISOString();
 }
-export function Berths({user,version,changed}:Props){
- const list=useList('/berths',version),[edit,setEdit]=useState<Row|null|undefined>(),[status,setStatus]=useState<Row>(),[deleting,setDeleting]=useState<Row>();
- return <><Header title="Miejsca portowe" description="Parametry pomostów, stawki dobowe i stan techniczny miejsc." action={user.role==='ADMIN'&&<button className="button" onClick={()=>setEdit(null)}><Plus size={17}/>Dodaj miejsce</button>}/><Filters {...list.filters} statuses={['AVAILABLE','CLOSED']}/><Resource loading={list.loading} error={list.error} empty={!list.data?.data.length}><div className="berth-grid">{list.data?.data.map(b=><article className="berth-card" key={b.id}><div className="berth-card-heading"><span className="berth-symbol">{b.code}</span><Badge value={b.status}/></div><div className="dimensions"><div><strong>{b.max_length_cm/100} m</strong><small>Długość</small></div><div><strong>{b.max_width_cm/100} m</strong><small>Szerokość</small></div><div><strong>{b.max_draft_cm/100} m</strong><small>Zanurzenie</small></div></div><strong className="daily-price">{money(b.rate_cents)} <span>/ doba</span></strong>{b.closure_reason&&<p className="inline-warning">{b.closure_reason}</p>}{user.role!=='SAILOR'&&<div className="card-actions"><button className="text-button" onClick={()=>setStatus(b)}>{b.status==='AVAILABLE'?'Zamknij miejsce':'Otwórz miejsce'}</button>{user.role==='ADMIN'&&<div className="row-actions"><button className="icon-button" aria-label={`Edytuj ${b.code}`} onClick={()=>setEdit(b)}><Pencil size={16}/></button><button className="icon-button danger" aria-label={`Usuń ${b.code}`} onClick={()=>setDeleting(b)}><Trash2 size={16}/></button></div>}</div>}</article>)}</div>{list.data&&<Pager data={list.data} onPage={list.setPage}/>}</Resource>{edit!==undefined&&<Modal title={edit?'Edytuj miejsce':'Nowe miejsce'} onClose={()=>setEdit(undefined)}><Form onCancel={()=>setEdit(undefined)} onSubmit={async f=>{await api(edit?`/berths/${edit.id}`:'/berths',edit?'PUT':'POST',{code:f.get('code'),max_length_cm:num(f,'max_length_cm'),max_width_cm:num(f,'max_width_cm'),max_draft_cm:num(f,'max_draft_cm'),rate_cents:Math.round(num(f,'rate')*100)});setEdit(undefined);changed('Miejsce zapisane.');}}><Field label="Oznaczenie miejsca" name="code" value={edit?.code}/><div className="form-grid three"><Field label="Maks. długość (cm)" name="max_length_cm" type="number" min={10} max={10000} value={edit?.max_length_cm}/><Field label="Maks. szerokość (cm)" name="max_width_cm" type="number" min={10} max={10000} value={edit?.max_width_cm}/><Field label="Maks. zanurzenie (cm)" name="max_draft_cm" type="number" min={10} max={10000} value={edit?.max_draft_cm}/></div><Field label="Cena za dobę (zł)" name="rate" type="number" min={1} max={10000} step={0.01} value={edit?edit.rate_cents/100:65}/><p className="form-help">Zmiana ceny dotyczy wyłącznie nowych rezerwacji.</p></Form></Modal>}{status&&<Modal title={status.status==='AVAILABLE'?`Zamknij ${status.code}`:`Otwórz ${status.code}`} onClose={()=>setStatus(undefined)}><Form label="Potwierdź zmianę" onCancel={()=>setStatus(undefined)} onSubmit={async f=>{await api(`/berths/${status.id}/status`,'PATCH',{status:status.status==='AVAILABLE'?'CLOSED':'AVAILABLE',reason:status.status==='AVAILABLE'?f.get('reason'):''});setStatus(undefined);changed('Status miejsca zmieniony.');}}>{status.status==='AVAILABLE'?<><Field label="Powód zamknięcia" name="reason"/><p className="form-help">Zamknięcie zablokuje nowe rezerwacje i meldowanie. Istniejące rezerwacje pozostaną w systemie i wymagają kontaktu z żeglarzami.</p></>:<p className="modal-description">Otwarcie wymaga usunięcia wszystkich krytycznych usterek tego miejsca.</p>}</Form></Modal>}{deleting&&<Confirm title={`Usunąć miejsce ${deleting.code}?`} description="Miejsce zostanie zarchiwizowane. Historia pozostanie dostępna. Aktywne rezerwacje uniemożliwiają usunięcie." onClose={()=>setDeleting(undefined)} onConfirm={async()=>{await api(`/berths/${deleting.id}`,'DELETE');setDeleting(undefined);changed('Miejsce zarchiwizowane.');}} label="Usuń miejsce"/>}</>;
+export function Dashboard({ user, version, navigate }: Props) {
+  const stats = useData<Row>("/dashboard", version),
+    bookings = useData<Page>(
+      "/reservations?limit=4&status=CONFIRMED&sort=oldest",
+      version,
+    );
+  return (
+    <>
+      <Header
+        title={`Dzień dobry, ${user.name.split(" ")[0]}.`}
+        description={
+          user.role === "SAILOR"
+            ? "Twój następny rejs zaczyna się tutaj."
+            : "Wszystko, co dziś dzieje się w Twoim porcie."
+        }
+        action={
+          <button className="button" onClick={() => navigate("availability")}>
+            <Plus size={17} />
+            Nowa rezerwacja
+          </button>
+        }
+      />
+      <section className="welcome-banner">
+        <div>
+          <span className="pill">MAZURY CZEKAJĄ</span>
+          <h2>
+            Znajdź swoje miejsce.
+            <br />
+            Poczuj spokój na wodzie.
+          </h2>
+          <p>
+            Dopasowane miejsce, przejrzysta cena,
+            <br />
+            wszystkie rezerwacje w jednym panelu.
+          </p>
+          <button
+            className="banner-link"
+            onClick={() => navigate("availability")}
+          >
+            Sprawdź dostępność <ArrowRight size={18} />
+          </button>
+        </div>
+        <div className="marina-illustration" aria-hidden="true">
+          <div className="pier pier-a" />
+          <div className="pier pier-b" />
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <span key={n} className={`mini-boat boat-${n}`} />
+          ))}
+          <span className="map-label">MAZURPORT</span>
+          <Anchor className="map-anchor" size={28} />
+        </div>
+      </section>
+      <div className="stats-grid">
+        {[
+          { key: "available_berths", label: "Otwarte miejsca", icon: Anchor },
+          {
+            key: "upcoming",
+            label: "Potwierdzone rezerwacje",
+            icon: CalendarDays,
+          },
+          { key: "checked_in", label: "Jachty w porcie", icon: Ship },
+          { key: "open_faults", label: "Otwarte zgłoszenia", icon: Wrench },
+        ].map((item) => (
+          <article className="stat" key={item.key}>
+            <span className="stat-icon">
+              <item.icon size={20} />
+            </span>
+            <strong>{stats.data?.[item.key] ?? "—"}</strong>
+            <span>{item.label}</span>
+          </article>
+        ))}
+      </div>
+      {stats.error && <ErrorBox message={stats.error} />}
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <h2>Potwierdzone rezerwacje</h2>
+            <p className="muted">Plan pobytów w porcie</p>
+          </div>
+          <button
+            className="text-button"
+            onClick={() => navigate("reservations")}
+          >
+            Wszystkie <ArrowUpRight size={16} />
+          </button>
+        </div>
+        <Resource
+          loading={bookings.loading}
+          error={bookings.error}
+          empty={!bookings.data?.data.length}
+        >
+          <div className="booking-list">
+            {bookings.data?.data.map((r) => (
+              <div key={r.id} className="booking-row">
+                <span className="berth-symbol">{r.berth_code}</span>
+                <div>
+                  <strong>{r.boat_name}</strong>
+                  <small>
+                    {date(r.starts_at)} → {date(r.ends_at)}
+                  </small>
+                </div>
+                <Badge value={r.status} />
+                <strong>{money(r.quoted_cents)}</strong>
+              </div>
+            ))}
+          </div>
+        </Resource>
+      </section>
+      <div className="dashboard-footnote">
+        <Anchor size={20} />
+        <p>
+          Stawka jest zapisywana w chwili rezerwacji. Każda rozpoczęta doba to
+          24 godziny od początku pobytu.
+        </p>
+      </div>
+    </>
+  );
 }
-export function Faults({user,version,changed}:Props){
- const list=useList('/faults',version),berths=useData<Page>('/berths?limit=100&sort=name',version),[creating,setCreating]=useState(false),[edit,setEdit]=useState<Row>();
- return <><Header title="Usterki i zgłoszenia" description="Zadbajmy wspólnie o bezpieczny port." action={<button className="button" onClick={()=>setCreating(true)}><Plus size={17}/>Zgłoś usterkę</button>}/><section className="panel"><Filters {...list.filters} statuses={['OPEN','IN_PROGRESS','RESOLVED']}/><Resource loading={list.loading} error={list.error} empty={!list.data?.data.length}><div className="fault-list">{list.data?.data.map(f=><article className="fault-row" key={f.id}><div className="fault-heading"><div><span className="small-caps">MIEJSCE {f.berth_code}</span><span className="muted"> · {date(f.created_at)}</span></div><div className="row-actions"><Badge value={f.severity}/><Badge value={f.status}/></div></div><p>{f.description}</p>{f.resolution&&<div className="resolution"><Check size={17}/>{f.resolution}</div>}<div className="fault-bottom"><small className="muted">Zgłosił: {f.reporter_name}</small>{user.role!=='SAILOR'&&f.status!=='RESOLVED'&&<button className="text-button" onClick={()=>setEdit(f)}>Obsłuż zgłoszenie <ArrowRight size={15}/></button>}</div></article>)}</div>{list.data&&<Pager data={list.data} onPage={list.setPage}/>}</Resource></section>{creating&&<Modal title="Zgłoś usterkę" onClose={()=>setCreating(false)}>{berths.loading?<Loader/>:berths.error?<ErrorBox message={berths.error}/>:<Form label="Wyślij zgłoszenie" onCancel={()=>setCreating(false)} onSubmit={async f=>{await api('/faults','POST',{berth_id:f.get('berth_id'),description:f.get('description'),severity:f.get('severity')});setCreating(false);changed('Zgłoszenie trafiło do obsługi.');}}><label className="field"><span>Miejsce</span><select name="berth_id" required>{berths.data?.data.map(b=><option key={b.id} value={b.id}>{b.code}</option>)}</select></label><label className="field"><span>Waga usterki</span><select name="severity"><option value="MINOR">Drobna, nie blokuje postoju</option><option value="CRITICAL">Krytyczna, miejsce niebezpieczne</option></select></label><label className="field"><span>Co się stało?</span><textarea name="description" required minLength={10} maxLength={2000} rows={4}/></label><p className="form-help">Usterka krytyczna automatycznie zamknie miejsce do czasu kontroli przez obsługę.</p></Form>}</Modal>}{edit&&<Modal title={`Obsługa usterki · ${edit.berth_code}`} onClose={()=>setEdit(undefined)}><p className="modal-description">{edit.description}</p><Form onCancel={()=>setEdit(undefined)} onSubmit={async f=>{await api(`/faults/${edit.id}`,'PATCH',{status:f.get('status'),resolution:f.get('resolution')});setEdit(undefined);changed('Zgłoszenie zaktualizowane.');}}><label className="field"><span>Nowy status</span><select name="status" defaultValue={edit.status==='IN_PROGRESS'?'RESOLVED':'IN_PROGRESS'}><option value="IN_PROGRESS">W naprawie</option><option value="RESOLVED">Rozwiązana</option></select></label><label className="field"><span>Opis wykonanych prac</span><textarea name="resolution" rows={4} maxLength={2000}/></label><p className="form-help">Po usunięciu krytycznej usterki otwórz miejsce w zakładce „Miejsca portowe”.</p></Form></Modal>}</>;
+export function Boats({ version, changed }: Props) {
+  const list = useList("/boats", version),
+    [editing, setEditing] = useState<Row | null | undefined>(),
+    [deleting, setDeleting] = useState<Row>();
+  return (
+    <>
+      <Header
+        title="Moje jachty"
+        description="Wymiary jachtu pomagają znaleźć bezpieczne miejsce przy pomoście."
+        action={
+          <button className="button" onClick={() => setEditing(null)}>
+            <Plus size={17} />
+            Dodaj jacht
+          </button>
+        }
+      />
+      <Filters {...list.filters} />
+      <Resource
+        loading={list.loading}
+        error={list.error}
+        empty={!list.data?.data.length}
+      >
+        <div className="card-grid">
+          {list.data?.data.map((b) => (
+            <article className="boat-card" key={b.id}>
+              <div className="boat-card-top">
+                <span className="boat-icon">
+                  <Ship size={35} />
+                </span>
+                <span className="small-caps">{b.registration}</span>
+              </div>
+              <h2>{b.name}</h2>
+              <p className="muted">Jacht żaglowy / jednostka rekreacyjna</p>
+              <div className="dimensions">
+                <div>
+                  <strong>{b.length_cm / 100} m</strong>
+                  <small>Długość</small>
+                </div>
+                <div>
+                  <strong>{b.width_cm / 100} m</strong>
+                  <small>Szerokość</small>
+                </div>
+                <div>
+                  <strong>{b.draft_cm / 100} m</strong>
+                  <small>Zanurzenie</small>
+                </div>
+              </div>
+              <div className="card-actions">
+                <button className="text-button" onClick={() => setEditing(b)}>
+                  <Pencil size={15} />
+                  Edytuj
+                </button>
+                <button
+                  className="text-button danger"
+                  onClick={() => setDeleting(b)}
+                >
+                  <Trash2 size={15} />
+                  Usuń
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+        {list.data && <Pager data={list.data} onPage={list.setPage} />}
+      </Resource>
+      {editing !== undefined && (
+        <Modal
+          title={editing ? "Edytuj jacht" : "Dodaj jacht"}
+          onClose={() => setEditing(undefined)}
+        >
+          <Form
+            onCancel={() => setEditing(undefined)}
+            onSubmit={async (f) => {
+              await api(
+                editing ? `/boats/${editing.id}` : "/boats",
+                editing ? "PUT" : "POST",
+                {
+                  name: f.get("name"),
+                  registration: f.get("registration"),
+                  length_cm: num(f, "length_cm"),
+                  width_cm: num(f, "width_cm"),
+                  draft_cm: num(f, "draft_cm"),
+                },
+              );
+              setEditing(undefined);
+              changed("Jacht zapisany.");
+            }}
+          >
+            <Field label="Nazwa jachtu" name="name" value={editing?.name} />
+            <Field
+              label="Numer rejestracyjny"
+              name="registration"
+              value={editing?.registration}
+            />
+            <div className="form-grid three">
+              <Field
+                label="Długość (cm)"
+                name="length_cm"
+                type="number"
+                min={10}
+                max={10000}
+                value={editing?.length_cm}
+              />
+              <Field
+                label="Szerokość (cm)"
+                name="width_cm"
+                type="number"
+                min={10}
+                max={10000}
+                value={editing?.width_cm}
+              />
+              <Field
+                label="Zanurzenie (cm)"
+                name="draft_cm"
+                type="number"
+                min={10}
+                max={10000}
+                value={editing?.draft_cm}
+              />
+            </div>
+            <p className="form-help">
+              Nie zmienisz wymiarów jachtu, który ma aktywną rezerwację.
+            </p>
+          </Form>
+        </Modal>
+      )}
+      {deleting && (
+        <Confirm
+          title={`Usunąć jacht „${deleting.name}”?`}
+          description="Jacht zniknie z Twojego katalogu. Historia rezerwacji zostanie zachowana. Aktywne rezerwacje blokują usunięcie."
+          onClose={() => setDeleting(undefined)}
+          onConfirm={async () => {
+            await api(`/boats/${deleting.id}`, "DELETE");
+            setDeleting(undefined);
+            changed("Jacht usunięty.");
+          }}
+          label="Usuń jacht"
+        />
+      )}
+    </>
+  );
 }
-export function UserAdmin({user,version,changed}:Props){
- const list=useList('/users',version),[edit,setEdit]=useState<Row>();
- return <><Header title="Użytkownicy" description="Role i dostęp do systemu. Zmiana uprawnień wyloguje wskazaną osobę."/><section className="panel"><Filters {...list.filters}/><Resource loading={list.loading} error={list.error} empty={!list.data?.data.length}><div className="table-scroll"><table><thead><tr><th>Użytkownik</th><th>Rola</th><th>Konto</th><th>Operacje</th></tr></thead><tbody>{list.data?.data.map(u=><tr key={u.id}><td><strong>{u.name}</strong><small>{u.email}</small></td><td><Badge value={u.role}/></td><td>{u.active?'Aktywne':'Wyłączone'}</td><td>{u.id!==user.id?<button className="text-button" onClick={()=>setEdit(u)}>Zmień uprawnienia</button>:<small>Twoje konto</small>}</td></tr>)}</tbody></table></div>{list.data&&<Pager data={list.data} onPage={list.setPage}/>}</Resource></section>{edit&&<Modal title={`Uprawnienia · ${edit.name}`} onClose={()=>setEdit(undefined)}><Form onCancel={()=>setEdit(undefined)} onSubmit={async f=>{await api(`/users/${edit.id}`,'PATCH',{role:f.get('role'),active:f.get('active')==='true'});setEdit(undefined);changed('Uprawnienia zapisane, sesje konta unieważnione.');}}><label className="field"><span>Rola</span><select name="role" defaultValue={edit.role}>{['SAILOR','STAFF','ADMIN'].map(r=><option key={r} value={r}>{names[r]}</option>)}</select></label><label className="field"><span>Status konta</span><select name="active" defaultValue={String(edit.active)}><option value="true">Aktywne</option><option value="false">Wyłączone</option></select></label></Form></Modal>}</>;
+export function Availability({ version, changed, navigate }: Props) {
+  const boats = useData<Page>("/boats?limit=100&sort=name", version),
+    [results, setResults] = useState<Row[]>(),
+    [period, setPeriod] = useState<{
+      boat_id: string;
+      starts_at: string;
+      ends_at: string;
+    }>(),
+    [selected, setSelected] = useState<Row>();
+  const start = new Date(Date.now() + 86400000);
+  start.setMinutes(0, 0, 0);
+  const end = new Date(start.getTime() + 2 * 86400000);
+  return (
+    <>
+      <Header
+        title="Znajdź miejsce w porcie"
+        description="Wybierz jacht i termin. Pokażemy miejsca dopasowane do jego wymiarów."
+      />
+      <div className="availability-layout">
+        <section className="panel search-panel">
+          <h2>Dokąd dziś płyniemy?</h2>
+          {boats.loading ? (
+            <Loader />
+          ) : boats.error ? (
+            <ErrorBox message={boats.error} />
+          ) : !boats.data?.data.length ? (
+            <Empty title="Najpierw dodaj jacht">
+              <button className="text-button" onClick={() => navigate("boats")}>
+                Przejdź do moich jachtów <ArrowRight size={15} />
+              </button>
+            </Empty>
+          ) : (
+            <Form
+              label="Sprawdź dostępność"
+              onSubmit={async (f) => {
+                const input = {
+                  boat_id: String(f.get("boat_id")),
+                  starts_at: utcTime(String(f.get("starts_at"))),
+                  ends_at: utcTime(String(f.get("ends_at"))),
+                };
+                setResults(undefined);
+                const result = await api<{ data: Row[] }>(
+                  `/availability?${new URLSearchParams(input)}`,
+                );
+                setPeriod(input);
+                setResults(result.data);
+              }}
+            >
+              <label className="field">
+                <span>Twój jacht</span>
+                <select name="boat_id" required>
+                  {boats.data.data.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} · {b.length_cm / 100} m
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Field
+                label="Przyjazd (czas polski)"
+                name="starts_at"
+                type="datetime-local"
+                value={localTime(start)}
+              />
+              <Field
+                label="Wyjazd (czas polski)"
+                name="ends_at"
+                type="datetime-local"
+                value={localTime(end)}
+              />
+              <div className="info-note">
+                <Anchor size={20} />
+                <p>
+                  Od 1 godziny do 30 dni. Cena za każdą rozpoczętą dobę 24 h.
+                  Bez płatności online.
+                </p>
+              </div>
+            </Form>
+          )}
+        </section>
+        <section className="availability-results">
+          {results === undefined ? (
+            <div className="search-placeholder">
+              <span className="compass">
+                <Anchor size={48} />
+              </span>
+              <h2>Tu zaczyna się dobry postój.</h2>
+              <p>
+                Uzupełnij termin, aby zobaczyć wolne miejsca i cenę całego
+                pobytu.
+              </p>
+            </div>
+          ) : results.length === 0 ? (
+            <Empty title="Brak wolnych miejsc">
+              Zmień termin lub wybierz inny jacht.
+            </Empty>
+          ) : (
+            <>
+              <div className="results-heading">
+                <h2>Dostępne miejsca</h2>
+                <span>{results.length} propozycji</span>
+              </div>
+              <div className="berth-grid">
+                {results.map((b) => (
+                  <article className="berth-card" key={b.id}>
+                    <div className="berth-card-heading">
+                      <span className="berth-symbol">{b.code}</span>
+                      <Badge value="AVAILABLE" />
+                    </div>
+                    <p>
+                      Do {b.max_length_cm / 100} m długości ·{" "}
+                      {b.max_width_cm / 100} m szerokości
+                      <br />
+                      Zanurzenie do {b.max_draft_cm / 100} m
+                    </p>
+                    <div className="berth-price">
+                      <div>
+                        <strong>{money(b.quoted_cents)}</strong>
+                        <small>
+                          za cały pobyt · {money(b.rate_cents)}/dobę
+                        </small>
+                      </div>
+                      <button className="button" onClick={() => setSelected(b)}>
+                        Wybierz <ArrowRight size={16} />
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      </div>
+      {selected && period && (
+        <Confirm
+          title={`Rezerwacja miejsca ${selected.code}`}
+          description={`${date(period.starts_at)} → ${date(period.ends_at)}. Koszt planowanego pobytu: ${money(selected.quoted_cents)}. Wcześniejszy wyjazd nie obniża opłaty; późniejszy jest rozliczany za kolejne rozpoczęte doby. Anulowanie jest możliwe przed rozpoczęciem terminu.`}
+          label="Potwierdź rezerwację"
+          onClose={() => setSelected(undefined)}
+          onConfirm={async () => {
+            await api("/reservations", "POST", {
+              ...period,
+              berth_id: selected.id,
+            });
+            setSelected(undefined);
+            changed("Miejsce zarezerwowane. Do zobaczenia w porcie!");
+            navigate("reservations");
+          }}
+        />
+      )}
+    </>
+  );
 }
-export function Notifications({version,changed}:Props){const list=useList('/notifications',version);return <><Header title="Powiadomienia" description="Aktualności dotyczące Twoich rezerwacji i zgłoszeń."/><section className="panel"><Resource loading={list.loading} error={list.error} empty={!list.data?.data.length}><div className="notification-list">{list.data?.data.map(n=><article key={n.id} className={`notification ${n.read_at?'read':''}`}><span className="notification-dot"/><div><p>{n.message}</p><small>{date(n.created_at)}</small></div>{!n.read_at&&<button className="text-button" onClick={async()=>{try{await api(`/notifications/${n.id}/read`,'PATCH');changed('Oznaczono jako przeczytane.');}catch(e){changed((e as Error).message);}}}>Przeczytane <Check size={16}/></button>}</article>)}</div>{list.data&&<Pager data={list.data} onPage={list.setPage}/>}</Resource></section></>;}
-export function Activity({version}:Props){const list=useList('/activity',version);const events:Record<string,string>={'reservation.created':'Utworzono rezerwację','reservation.cancelled':'Anulowano rezerwację','reservation.checked_in':'Zameldowano jacht','reservation.checked_out':'Wymeldowano jacht','fault.reported':'Zgłoszono usterkę','fault.updated':'Zmieniono zgłoszenie','user.updated':'Zmieniono uprawnienia','berth.status_changed':'Zmieniono dostępność miejsca'};return <><Header title="Dziennik portu" description="Zdarzenia zapisywane asynchronicznie po zakończeniu operacji."/><section className="panel"><Resource loading={list.loading} error={list.error} empty={!list.data?.data.length}><div className="activity-list">{list.data?.data.map(a=><article key={a.id}><span className="activity-node"/><div><strong>{events[a.type]??a.type}</strong><p>{a.actor_name} · {date(a.created_at)}</p><small>{Object.values(a.payload).map(String).join(' · ')}</small></div></article>)}</div>{list.data&&<Pager data={list.data} onPage={list.setPage}/>}</Resource></section></>;}
+export function Reservations({ user, version, changed, navigate }: Props) {
+  const list = useList("/reservations", version),
+    [action, setAction] = useState<{ row: Row; type: string }>(),
+    [detail, setDetail] = useState<Row>(),
+    staff = user.role !== "SAILOR";
+  const actionNames: Record<string, string> = {
+    cancel: "Anuluj rezerwację",
+    "check-in": "Zamelduj jacht",
+    "check-out": "Wymelduj i rozlicz",
+  };
+  return (
+    <>
+      <Header
+        title="Rezerwacje"
+        description={
+          staff
+            ? "Kontroluj przyjazdy, wyjazdy i rozliczenia całego portu."
+            : "Twoje plany, pobyty i rozliczenia w jednym miejscu."
+        }
+        action={
+          <button className="button" onClick={() => navigate("availability")}>
+            <Plus size={17} />
+            Nowa rezerwacja
+          </button>
+        }
+      />
+      <section className="panel">
+        <Filters
+          {...list.filters}
+          statuses={["CONFIRMED", "CHECKED_IN", "COMPLETED", "CANCELLED"]}
+        />
+        <Resource
+          loading={list.loading}
+          error={list.error}
+          empty={!list.data?.data.length}
+        >
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Jacht / miejsce</th>
+                  <th>Termin pobytu</th>
+                  <th>Status</th>
+                  <th>Koszt</th>
+                  <th>Operacje</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.data?.data.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <button
+                        className="table-link"
+                        onClick={async () => {
+                          try {
+                            setDetail(await api(`/reservations/${r.id}`));
+                          } catch (e) {
+                            changed((e as Error).message);
+                          }
+                        }}
+                      >
+                        {r.boat_name}
+                      </button>
+                      <small>
+                        {r.berth_code}
+                        {staff ? ` · ${r.user_name}` : ""}
+                      </small>
+                      {r.berth_status === "CLOSED" &&
+                        r.status === "CONFIRMED" && (
+                          <span className="inline-warning">
+                            Miejsce zamknięte, skontaktuj się z obsługą.
+                          </span>
+                        )}
+                    </td>
+                    <td>
+                      <span>{date(r.starts_at)}</span>
+                      <small>do {date(r.ends_at)}</small>
+                    </td>
+                    <td>
+                      <Badge value={r.status} />
+                    </td>
+                    <td>
+                      <strong>{money(r.final_cents ?? r.quoted_cents)}</strong>
+                      <small>
+                        {r.final_cents !== null
+                          ? "Rozliczono"
+                          : "Planowany koszt"}
+                      </small>
+                    </td>
+                    <td>
+                      <div className="row-actions">
+                        {r.status === "CONFIRMED" && (
+                          <>
+                            {staff && (
+                              <button
+                                className="icon-button"
+                                title="Zamelduj"
+                                aria-label={`Zamelduj ${r.boat_name}`}
+                                onClick={() =>
+                                  setAction({ row: r, type: "check-in" })
+                                }
+                              >
+                                <LogIn size={18} />
+                              </button>
+                            )}
+                            {(staff || new Date(r.starts_at) > new Date()) && (
+                              <button
+                                className="text-button danger"
+                                onClick={() =>
+                                  setAction({ row: r, type: "cancel" })
+                                }
+                              >
+                                Anuluj
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {staff && r.status === "CHECKED_IN" && (
+                          <button
+                            className="text-button"
+                            onClick={() =>
+                              setAction({ row: r, type: "check-out" })
+                            }
+                          >
+                            <LogOut size={16} />
+                            Wymelduj
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {list.data && <Pager data={list.data} onPage={list.setPage} />}
+        </Resource>
+      </section>
+      {action && (
+        <Confirm
+          title={actionNames[action.type]!}
+          description={`${action.row.boat_name}, miejsce ${action.row.berth_code}. ${action.type === "check-out" ? "Końcowa cena uwzględni planowany pobyt oraz ewentualne przekroczenie terminu." : action.type === "check-in" ? "Zameldowanie jest możliwe w terminie rezerwacji, gdy miejsce jest otwarte i wolne." : "Tej operacji nie można cofnąć."}`}
+          onClose={() => setAction(undefined)}
+          onConfirm={async () => {
+            await api(`/reservations/${action.row.id}/${action.type}`, "POST");
+            setAction(undefined);
+            changed("Stan rezerwacji został zmieniony.");
+          }}
+          label={actionNames[action.type]}
+        />
+      )}{" "}
+      {detail && (
+        <Modal
+          title={`Rezerwacja · ${detail.berth_code}`}
+          onClose={() => setDetail(undefined)}
+        >
+          <div className="reservation-detail">
+            <Badge value={detail.status} />
+            <h3>{detail.boat_name}</h3>
+            <p>
+              {detail.registration} · {detail.user_name}
+            </p>
+            <dl>
+              <dt>Przyjazd</dt>
+              <dd>{date(detail.starts_at)}</dd>
+              <dt>Wyjazd</dt>
+              <dd>{date(detail.ends_at)}</dd>
+              <dt>Stawka za dobę</dt>
+              <dd>{money(detail.rate_cents)}</dd>
+              <dt>Planowany koszt</dt>
+              <dd>{money(detail.quoted_cents)}</dd>
+              {detail.checked_in_at && (
+                <>
+                  <dt>Zameldowano</dt>
+                  <dd>{date(detail.checked_in_at)}</dd>
+                </>
+              )}
+              {detail.checked_out_at && (
+                <>
+                  <dt>Wymeldowano</dt>
+                  <dd>{date(detail.checked_out_at)}</dd>
+                  <dt>Końcowa opłata</dt>
+                  <dd>
+                    <strong>{money(detail.final_cents)}</strong>
+                  </dd>
+                </>
+              )}
+            </dl>
+            <small className="muted">Numer rezerwacji: {detail.id}</small>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+export function Berths({ user, version, changed }: Props) {
+  const list = useList("/berths", version),
+    [edit, setEdit] = useState<Row | null | undefined>(),
+    [status, setStatus] = useState<Row>(),
+    [deleting, setDeleting] = useState<Row>();
+  return (
+    <>
+      <Header
+        title="Miejsca portowe"
+        description="Parametry pomostów, stawki dobowe i stan techniczny miejsc."
+        action={
+          user.role === "ADMIN" && (
+            <button className="button" onClick={() => setEdit(null)}>
+              <Plus size={17} />
+              Dodaj miejsce
+            </button>
+          )
+        }
+      />
+      <Filters {...list.filters} statuses={["AVAILABLE", "CLOSED"]} />
+      <Resource
+        loading={list.loading}
+        error={list.error}
+        empty={!list.data?.data.length}
+      >
+        <div className="berth-grid">
+          {list.data?.data.map((b) => (
+            <article className="berth-card" key={b.id}>
+              <div className="berth-card-heading">
+                <span className="berth-symbol">{b.code}</span>
+                <Badge value={b.status} />
+              </div>
+              <div className="dimensions">
+                <div>
+                  <strong>{b.max_length_cm / 100} m</strong>
+                  <small>Długość</small>
+                </div>
+                <div>
+                  <strong>{b.max_width_cm / 100} m</strong>
+                  <small>Szerokość</small>
+                </div>
+                <div>
+                  <strong>{b.max_draft_cm / 100} m</strong>
+                  <small>Zanurzenie</small>
+                </div>
+              </div>
+              <strong className="daily-price">
+                {money(b.rate_cents)} <span>/ doba</span>
+              </strong>
+              {b.closure_reason && (
+                <p className="inline-warning">{b.closure_reason}</p>
+              )}
+              {user.role !== "SAILOR" && (
+                <div className="card-actions">
+                  <button className="text-button" onClick={() => setStatus(b)}>
+                    {b.status === "AVAILABLE"
+                      ? "Zamknij miejsce"
+                      : "Otwórz miejsce"}
+                  </button>
+                  {user.role === "ADMIN" && (
+                    <div className="row-actions">
+                      <button
+                        className="icon-button"
+                        aria-label={`Edytuj ${b.code}`}
+                        onClick={() => setEdit(b)}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        className="icon-button danger"
+                        aria-label={`Usuń ${b.code}`}
+                        onClick={() => setDeleting(b)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+        {list.data && <Pager data={list.data} onPage={list.setPage} />}
+      </Resource>
+      {edit !== undefined && (
+        <Modal
+          title={edit ? "Edytuj miejsce" : "Nowe miejsce"}
+          onClose={() => setEdit(undefined)}
+        >
+          <Form
+            onCancel={() => setEdit(undefined)}
+            onSubmit={async (f) => {
+              await api(
+                edit ? `/berths/${edit.id}` : "/berths",
+                edit ? "PUT" : "POST",
+                {
+                  code: f.get("code"),
+                  max_length_cm: num(f, "max_length_cm"),
+                  max_width_cm: num(f, "max_width_cm"),
+                  max_draft_cm: num(f, "max_draft_cm"),
+                  rate_cents: Math.round(num(f, "rate") * 100),
+                },
+              );
+              setEdit(undefined);
+              changed("Miejsce zapisane.");
+            }}
+          >
+            <Field label="Oznaczenie miejsca" name="code" value={edit?.code} />
+            <div className="form-grid three">
+              <Field
+                label="Maks. długość (cm)"
+                name="max_length_cm"
+                type="number"
+                min={10}
+                max={10000}
+                value={edit?.max_length_cm}
+              />
+              <Field
+                label="Maks. szerokość (cm)"
+                name="max_width_cm"
+                type="number"
+                min={10}
+                max={10000}
+                value={edit?.max_width_cm}
+              />
+              <Field
+                label="Maks. zanurzenie (cm)"
+                name="max_draft_cm"
+                type="number"
+                min={10}
+                max={10000}
+                value={edit?.max_draft_cm}
+              />
+            </div>
+            <Field
+              label="Cena za dobę (zł)"
+              name="rate"
+              type="number"
+              min={1}
+              max={10000}
+              step={0.01}
+              value={edit ? edit.rate_cents / 100 : 65}
+            />
+            <p className="form-help">
+              Zmiana ceny dotyczy wyłącznie nowych rezerwacji.
+            </p>
+          </Form>
+        </Modal>
+      )}
+      {status && (
+        <Modal
+          title={
+            status.status === "AVAILABLE"
+              ? `Zamknij ${status.code}`
+              : `Otwórz ${status.code}`
+          }
+          onClose={() => setStatus(undefined)}
+        >
+          <Form
+            label="Potwierdź zmianę"
+            onCancel={() => setStatus(undefined)}
+            onSubmit={async (f) => {
+              await api(`/berths/${status.id}/status`, "PATCH", {
+                status: status.status === "AVAILABLE" ? "CLOSED" : "AVAILABLE",
+                reason: status.status === "AVAILABLE" ? f.get("reason") : "",
+              });
+              setStatus(undefined);
+              changed("Status miejsca zmieniony.");
+            }}
+          >
+            {status.status === "AVAILABLE" ? (
+              <>
+                <Field label="Powód zamknięcia" name="reason" />
+                <p className="form-help">
+                  Zamknięcie zablokuje nowe rezerwacje i meldowanie. Istniejące
+                  rezerwacje pozostaną w systemie i wymagają kontaktu z
+                  żeglarzami.
+                </p>
+              </>
+            ) : (
+              <p className="modal-description">
+                Otwarcie wymaga usunięcia wszystkich krytycznych usterek tego
+                miejsca.
+              </p>
+            )}
+          </Form>
+        </Modal>
+      )}
+      {deleting && (
+        <Confirm
+          title={`Usunąć miejsce ${deleting.code}?`}
+          description="Miejsce zostanie zarchiwizowane. Historia pozostanie dostępna. Aktywne rezerwacje uniemożliwiają usunięcie."
+          onClose={() => setDeleting(undefined)}
+          onConfirm={async () => {
+            await api(`/berths/${deleting.id}`, "DELETE");
+            setDeleting(undefined);
+            changed("Miejsce zarchiwizowane.");
+          }}
+          label="Usuń miejsce"
+        />
+      )}
+    </>
+  );
+}
+export function Faults({ user, version, changed }: Props) {
+  const list = useList("/faults", version),
+    berths = useData<Page>("/berths?limit=100&sort=name", version),
+    [creating, setCreating] = useState(false),
+    [edit, setEdit] = useState<Row>();
+  return (
+    <>
+      <Header
+        title="Usterki i zgłoszenia"
+        description="Zadbajmy wspólnie o bezpieczny port."
+        action={
+          <button className="button" onClick={() => setCreating(true)}>
+            <Plus size={17} />
+            Zgłoś usterkę
+          </button>
+        }
+      />
+      <section className="panel">
+        <Filters
+          {...list.filters}
+          statuses={["OPEN", "IN_PROGRESS", "RESOLVED"]}
+        />
+        <Resource
+          loading={list.loading}
+          error={list.error}
+          empty={!list.data?.data.length}
+        >
+          <div className="fault-list">
+            {list.data?.data.map((f) => (
+              <article className="fault-row" key={f.id}>
+                <div className="fault-heading">
+                  <div>
+                    <span className="small-caps">MIEJSCE {f.berth_code}</span>
+                    <span className="muted"> · {date(f.created_at)}</span>
+                  </div>
+                  <div className="row-actions">
+                    <Badge value={f.severity} />
+                    <Badge value={f.status} />
+                  </div>
+                </div>
+                <p>{f.description}</p>
+                {f.resolution && (
+                  <div className="resolution">
+                    <Check size={17} />
+                    {f.resolution}
+                  </div>
+                )}
+                <div className="fault-bottom">
+                  <small className="muted">Zgłosił: {f.reporter_name}</small>
+                  {user.role !== "SAILOR" && f.status !== "RESOLVED" && (
+                    <button className="text-button" onClick={() => setEdit(f)}>
+                      Obsłuż zgłoszenie <ArrowRight size={15} />
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+          {list.data && <Pager data={list.data} onPage={list.setPage} />}
+        </Resource>
+      </section>
+      {creating && (
+        <Modal title="Zgłoś usterkę" onClose={() => setCreating(false)}>
+          {berths.loading ? (
+            <Loader />
+          ) : berths.error ? (
+            <ErrorBox message={berths.error} />
+          ) : (
+            <Form
+              label="Wyślij zgłoszenie"
+              onCancel={() => setCreating(false)}
+              onSubmit={async (f) => {
+                await api("/faults", "POST", {
+                  berth_id: f.get("berth_id"),
+                  description: f.get("description"),
+                  severity: f.get("severity"),
+                });
+                setCreating(false);
+                changed("Zgłoszenie trafiło do obsługi.");
+              }}
+            >
+              <label className="field">
+                <span>Miejsce</span>
+                <select name="berth_id" required>
+                  {berths.data?.data.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.code}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Waga usterki</span>
+                <select name="severity">
+                  <option value="MINOR">Drobna, nie blokuje postoju</option>
+                  <option value="CRITICAL">
+                    Krytyczna, miejsce niebezpieczne
+                  </option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Co się stało?</span>
+                <textarea
+                  name="description"
+                  required
+                  minLength={10}
+                  maxLength={2000}
+                  rows={4}
+                />
+              </label>
+              <p className="form-help">
+                Usterka krytyczna automatycznie zamknie miejsce do czasu
+                kontroli przez obsługę.
+              </p>
+            </Form>
+          )}
+        </Modal>
+      )}
+      {edit && (
+        <Modal
+          title={`Obsługa usterki · ${edit.berth_code}`}
+          onClose={() => setEdit(undefined)}
+        >
+          <p className="modal-description">{edit.description}</p>
+          <Form
+            onCancel={() => setEdit(undefined)}
+            onSubmit={async (f) => {
+              await api(`/faults/${edit.id}`, "PATCH", {
+                status: f.get("status"),
+                resolution: f.get("resolution"),
+              });
+              setEdit(undefined);
+              changed("Zgłoszenie zaktualizowane.");
+            }}
+          >
+            <label className="field">
+              <span>Nowy status</span>
+              <select
+                name="status"
+                defaultValue={
+                  edit.status === "IN_PROGRESS" ? "RESOLVED" : "IN_PROGRESS"
+                }
+              >
+                <option value="IN_PROGRESS">W naprawie</option>
+                <option value="RESOLVED">Rozwiązana</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Opis wykonanych prac</span>
+              <textarea name="resolution" rows={4} maxLength={2000} />
+            </label>
+            <p className="form-help">
+              Po usunięciu krytycznej usterki otwórz miejsce w zakładce „Miejsca
+              portowe”.
+            </p>
+          </Form>
+        </Modal>
+      )}
+    </>
+  );
+}
+export function UserAdmin({ user, version, changed }: Props) {
+  const list = useList("/users", version),
+    [edit, setEdit] = useState<Row>();
+  return (
+    <>
+      <Header
+        title="Użytkownicy"
+        description="Role i dostęp do systemu. Zmiana uprawnień wyloguje wskazaną osobę."
+      />
+      <section className="panel">
+        <Filters {...list.filters} />
+        <Resource
+          loading={list.loading}
+          error={list.error}
+          empty={!list.data?.data.length}
+        >
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Użytkownik</th>
+                  <th>Rola</th>
+                  <th>Konto</th>
+                  <th>Operacje</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.data?.data.map((u) => (
+                  <tr key={u.id}>
+                    <td>
+                      <strong>{u.name}</strong>
+                      <small>{u.email}</small>
+                    </td>
+                    <td>
+                      <Badge value={u.role} />
+                    </td>
+                    <td>{u.active ? "Aktywne" : "Wyłączone"}</td>
+                    <td>
+                      {u.id !== user.id ? (
+                        <button
+                          className="text-button"
+                          onClick={() => setEdit(u)}
+                        >
+                          Zmień uprawnienia
+                        </button>
+                      ) : (
+                        <small>Twoje konto</small>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {list.data && <Pager data={list.data} onPage={list.setPage} />}
+        </Resource>
+      </section>
+      {edit && (
+        <Modal
+          title={`Uprawnienia · ${edit.name}`}
+          onClose={() => setEdit(undefined)}
+        >
+          <Form
+            onCancel={() => setEdit(undefined)}
+            onSubmit={async (f) => {
+              await api(`/users/${edit.id}`, "PATCH", {
+                role: f.get("role"),
+                active: f.get("active") === "true",
+              });
+              setEdit(undefined);
+              changed("Uprawnienia zapisane, sesje konta unieważnione.");
+            }}
+          >
+            <label className="field">
+              <span>Rola</span>
+              <select name="role" defaultValue={edit.role}>
+                {["SAILOR", "STAFF", "ADMIN"].map((r) => (
+                  <option key={r} value={r}>
+                    {names[r]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Status konta</span>
+              <select name="active" defaultValue={String(edit.active)}>
+                <option value="true">Aktywne</option>
+                <option value="false">Wyłączone</option>
+              </select>
+            </label>
+          </Form>
+        </Modal>
+      )}
+    </>
+  );
+}
+export function Notifications({ version, changed }: Props) {
+  const list = useList("/notifications", version);
+  return (
+    <>
+      <Header
+        title="Powiadomienia"
+        description="Aktualności dotyczące Twoich rezerwacji i zgłoszeń."
+      />
+      <section className="panel">
+        <Resource
+          loading={list.loading}
+          error={list.error}
+          empty={!list.data?.data.length}
+        >
+          <div className="notification-list">
+            {list.data?.data.map((n) => (
+              <article
+                key={n.id}
+                className={`notification ${n.read_at ? "read" : ""}`}
+              >
+                <span className="notification-dot" />
+                <div>
+                  <p>{n.message}</p>
+                  <small>{date(n.created_at)}</small>
+                </div>
+                {!n.read_at && (
+                  <button
+                    className="text-button"
+                    onClick={async () => {
+                      try {
+                        await api(`/notifications/${n.id}/read`, "PATCH");
+                        changed("Oznaczono jako przeczytane.");
+                      } catch (e) {
+                        changed((e as Error).message);
+                      }
+                    }}
+                  >
+                    Przeczytane <Check size={16} />
+                  </button>
+                )}
+              </article>
+            ))}
+          </div>
+          {list.data && <Pager data={list.data} onPage={list.setPage} />}
+        </Resource>
+      </section>
+    </>
+  );
+}
+export function Activity({ version }: Props) {
+  const list = useList("/activity", version);
+  const events: Record<string, string> = {
+    "reservation.created": "Utworzono rezerwację",
+    "reservation.cancelled": "Anulowano rezerwację",
+    "reservation.checked_in": "Zameldowano jacht",
+    "reservation.checked_out": "Wymeldowano jacht",
+    "fault.reported": "Zgłoszono usterkę",
+    "fault.updated": "Zmieniono zgłoszenie",
+    "user.updated": "Zmieniono uprawnienia",
+    "berth.status_changed": "Zmieniono dostępność miejsca",
+  };
+  return (
+    <>
+      <Header
+        title="Dziennik portu"
+        description="Historia najważniejszych działań obsługi i żeglarzy."
+      />
+      <section className="panel">
+        <Resource
+          loading={list.loading}
+          error={list.error}
+          empty={!list.data?.data.length}
+        >
+          <div className="activity-list">
+            {list.data?.data.map((a) => (
+              <article key={a.id}>
+                <span className="activity-node" />
+                <div>
+                  <strong>{events[a.type] ?? a.type}</strong>
+                  <p>
+                    {a.actor_name} · {date(a.created_at)}
+                  </p>
+                  <small>
+                    {Object.entries(a.payload)
+                      .filter(([, value]) => value !== "")
+                      .map(
+                        ([key, value]) =>
+                          `${({ reservationId: "Rezerwacja", faultId: "Zgłoszenie", berthId: "Miejsce", userId: "Użytkownik", status: "Status", severity: "Waga", role: "Rola", active: "Aktywne", reason: "Powód" } as Record<string, string>)[key] ?? key}: ${names[String(value)] ?? String(value)}`,
+                      )
+                      .join(" · ")}
+                  </small>
+                </div>
+              </article>
+            ))}
+          </div>
+          {list.data && <Pager data={list.data} onPage={list.setPage} />}
+        </Resource>
+      </section>
+    </>
+  );
+}
