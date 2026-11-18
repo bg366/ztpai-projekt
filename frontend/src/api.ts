@@ -34,12 +34,17 @@ export async function api<T = any>(
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (response.status === 204) return undefined as T;
-  const data = await response
-    .json()
-    .catch(() => ({
-      error: { message: "Serwer zwrócił niepoprawną odpowiedź." },
-    }));
+  const data = await response.json().catch(() => ({
+    error: { message: "Serwer zwrócił niepoprawną odpowiedź." },
+  }));
   if (!response.ok) {
+    if (
+      response.status === 401 &&
+      path !== "/auth/login" &&
+      path !== "/auth/register"
+    ) {
+      window.dispatchEvent(new Event("mazurport:session-expired"));
+    }
     const details = data.error?.details
       ?.map(
         (d: { field: string; message: string }) => `${d.field}: ${d.message}`,

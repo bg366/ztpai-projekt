@@ -45,9 +45,15 @@ export function App() {
     [loading, setLoading] = useState(true),
     [page, setPage] = useState("dashboard"),
     [mobile, setMobile] = useState(false),
+    [narrow, setNarrow] = useState(() => window.innerWidth <= 720),
     [version, setVersion] = useState(0),
     [toast, setToast] = useState("");
   useEffect(() => {
+    const expired = () => {
+      setUser(null);
+      setCsrf("");
+    };
+    window.addEventListener("mazurport:session-expired", expired);
     api("/auth/me")
       .then((result) => {
         setCsrf(result.csrfToken);
@@ -55,6 +61,14 @@ export function App() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+    return () =>
+      window.removeEventListener("mazurport:session-expired", expired);
+  }, []);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 720px)");
+    const change = () => setNarrow(query.matches);
+    query.addEventListener("change", change);
+    return () => query.removeEventListener("change", change);
   }, []);
   useEffect(() => {
     if (!toast) return;
@@ -97,7 +111,11 @@ export function App() {
           onClick={() => setMobile(false)}
         />
       )}
-      <aside className={`sidebar ${mobile ? "is-open" : ""}`}>
+      <aside
+        className={`sidebar ${mobile ? "is-open" : ""}`}
+        inert={narrow && !mobile}
+        aria-hidden={narrow && !mobile}
+      >
         <div className="brand">
           <Anchor size={29} />
           <span>
