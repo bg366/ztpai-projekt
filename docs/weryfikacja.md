@@ -6,6 +6,7 @@ Weryfikację wykonano 19.11.2026 na lokalnym Dockerze. Testy integracyjne używa
 - Testy jednostkowe: 9 przypadków, m.in. wymiary, granice dat, rozpoczęte doby, przejścia stanów, hasła i niezależni odbiorcy zdarzeń.
 - Testy integracyjne: 18 przypadków w wersji bazowej, w tym równoczesne rezerwacje z wynikiem 201/409, własność zasobów, CSRF, role, unieważnienie sesji i obsługa awarii.
 - Obrazy Node.js 22 oraz Nginx: poprawny build. Migracje wykonały się przy starcie API, wszystkie trzy serwisy osiągnęły stan healthy.
+- Czysty klon z osobnym projektem Compose i nowym wolumenem: build, migracje i seed zakończyły się powodzeniem; HTTP health 200, logowanie żeglarza 200, dwa jachty i 12 miejsc. Tymczasowy wolumen kontrolny usunięto po sprawdzeniu.
 - Swagger UI: rzeczywisty request przez Try it out / Execute do `/health`, odpowiedź 200 i `{"status":"ok"}`.
 - Przeglądarka: logowanie, rezerwacja, zgłoszenie krytyczne, błąd zbyt wczesnego meldowania, check-in, check-out i koszt 65 zł, rozwiązanie usterki, otwarcie miejsca i dziennik zdarzeń.
 - CRUD jachtu sprawdzony przez UI na ekranie 390 px: dodanie, zmiana długości z 7 do 7,1 m i usunięcie z potwierdzeniem.
