@@ -129,6 +129,7 @@ export class ReservationService {
           "OUTSIDE_PERIOD",
           "Zameldowanie jest możliwe tylko w terminie rezerwacji.",
         );
+      requireValue(await new CatalogRepository(db).boat(r.boat_id, true));
       const berth = requireValue(
         await new CatalogRepository(db).berth(r.berth_id, true),
       );
@@ -138,11 +139,11 @@ export class ReservationService {
           "BERTH_CLOSED",
           "Miejsce jest zamknięte. Najpierw usuń usterkę i otwórz miejsce.",
         );
-      if (await repo.occupied(r.berth_id, id))
+      if (await repo.occupied(r.berth_id, id, r.boat_id))
         throw new AppError(
           409,
           "STILL_OCCUPIED",
-          "Poprzedni jacht nie został jeszcze wymeldowany.",
+          "Miejsce jest zajęte lub jacht nie zakończył poprzedniego pobytu.",
         );
       await repo.checkin(id, now);
       return r;

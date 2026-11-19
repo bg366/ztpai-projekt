@@ -65,11 +65,11 @@ export class ReservationRepository {
       [id],
     );
   }
-  occupied(berth: string, id: string) {
+  occupied(berth: string, id: string, boat: string) {
     return one(
       this.db,
-      "SELECT id FROM reservations WHERE berth_id=$1 AND status='CHECKED_IN' AND id!=$2",
-      [berth, id],
+      "SELECT id FROM reservations WHERE (berth_id=$1 OR boat_id=$3) AND status='CHECKED_IN' AND id!=$2",
+      [berth, id, boat],
     );
   }
   async checkin(id: string, now: Date) {
