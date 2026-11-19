@@ -65,6 +65,46 @@ after(async () => {
   await events.drain();
   await pool.end();
 });
+test("jacht z niezakończonym pobytem nie może zameldować się na innym miejscu", async () => {
+  const secondBerth = (
+    await mutation(admin, "post", "/berths", {
+      code: "B-02",
+      max_length_cm: 1100,
+      max_width_cm: 400,
+      max_draft_cm: 200,
+      rate_cents: 7500,
+    }).expect(201)
+  ).body;
+  const first = (
+    await mutation(sailor, "post", "/reservations", booking()).expect(201)
+  ).body;
+  const second = (
+    await mutation(
+      sailor,
+      "post",
+      "/reservations",
+      booking({
+        berth_id: secondBerth.id,
+        starts_at: "2027-07-02T10:00:00Z",
+        ends_at: "2027-07-03T10:00:00Z",
+      }),
+    ).expect(201)
+  ).body;
+  clock = new Date("2027-07-01T10:00:00Z");
+  await mutation(staff, "post", `/reservations/${first.id}/check-in`).expect(
+    200,
+  );
+  clock = new Date("2027-07-02T10:01:00Z");
+  await mutation(staff, "post", `/reservations/${second.id}/check-in`).expect(
+    409,
+  );
+  await mutation(staff, "post", `/reservations/${first.id}/check-out`).expect(
+    200,
+  );
+  await mutation(staff, "post", `/reservations/${second.id}/check-in`).expect(
+    200,
+  );
+});
 beforeEach(async () => {
   await events.drain();
   await pool.query(
