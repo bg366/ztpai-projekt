@@ -85,7 +85,6 @@ Testy integracyjne uruchamiają prawdziwą bazę PostgreSQL, wykonują migracje 
 - [Przykłady API i kody błędów](docs/api.md)
 - [Scenariusz prezentacji i nagranie 3:53](docs/demo.md)
 - [Przeprowadzona walidacja](docs/weryfikacja.md)
-- [Nagranie demonstracji MP4](docs/demo.mp4)
 
 Struktura: `backend/src/routes.ts` definiuje dostępne operacje, `controllers.ts` obsługuje HTTP i DTO, `services/` zawiera reguły i transakcje, `repositories/` wykonuje parametryzowany SQL. Frontend znajduje się w `frontend/src/`, migracje w `backend/migrations/`.
 
